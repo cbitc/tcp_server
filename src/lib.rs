@@ -4,6 +4,7 @@ pub mod pool;
 pub mod request;
 pub mod router;
 mod service;
+pub mod response;
 
 
 fn init_logger() {

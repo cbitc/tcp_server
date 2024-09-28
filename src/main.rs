@@ -1,15 +1,17 @@
 use std::{
     env,
-    io::{BufRead, BufReader},
+    io::{BufRead, BufReader, Write},
     net::TcpStream,
     sync::Arc,
 };
 
-use log::info;
-use tcp_server::{context::Context, pool::ThreadPool, request::Request, router::Router};
+use log::{info, trace};
+use tcp_server::{
+    context::Context, pool::ThreadPool, request::Request, response::Response, router::Router,
+};
 
 fn init_logger() {
-    env::set_var("RUST_LOG", "debug");
+    env::set_var("RUST_LOG", "trace");
     env_logger::init();
 }
 
@@ -55,6 +57,31 @@ fn handle_connection(mut stream: TcpStream, context: Arc<Context>) {
         .take_while(|line| !line.is_empty())
         .collect();
 
-    let request = Request::from_content(&lines);
-    
+    let request = Request::from_content(&lines).unwrap();
+    trace!("{:#?}", request);
+    let service = context.route(&request.path);
+    trace!("{:#?}", service);
+    let mut response = Response::default();
+    service.service(request.method, &request, &mut response);
+    trace!("{:#?}", response);
+
+    print_response(&stream, &request, &response);
+}
+
+fn print_response(mut stream: &TcpStream, request: &Request, response: &Response) {
+    let line = format!(
+        "{} {} {}\r\n",
+        request.version, response.status_code, response.status_text
+    );
+    stream.write_all(line.as_bytes()).unwrap();
+
+    let head = format!(
+        "Content-Type: {}; charset={}\r\nContent-Length: {}\r\n\r\n",
+        response.content_type,
+        response.charset,
+        response.writer.get_buffer().len()
+    );
+    stream.write_all(head.as_bytes()).unwrap();
+
+    stream.write_all(response.writer.get_buffer()).unwrap();
 }

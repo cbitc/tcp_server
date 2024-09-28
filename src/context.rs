@@ -1,15 +1,11 @@
-use std::collections::HashMap;
-
-use crate::{
-    router::{self, Router},
-    service::Service,
-};
+use crate::{request::Request, response::Response, router::Router, service::Service};
 
 #[derive(Debug)]
 pub struct Context {
     pub server_ip: String,
     pub server_port: String,
     router: Router,
+    default_service: Box<dyn Service>,
 }
 
 impl Context {
@@ -17,11 +13,11 @@ impl Context {
         ContextBuilder::new()
     }
 
-    pub fn route(&self, path: &str) {
-        if let Some(service) = self.router.get(path){
-            
-        }else{
-
+    pub fn route(&self, path: &str) -> &Box<dyn Service> {
+        if let Some(service) = self.router.get(path) {
+            service
+        } else {
+            &self.default_service
         }
     }
 }
@@ -62,6 +58,7 @@ impl ContextBuilder {
             server_ip: self.server_ip,
             server_port: self.server_port,
             router: self.router,
+            default_service: Box::new(DefaultService {}),
         }
     }
 }
@@ -69,23 +66,20 @@ impl ContextBuilder {
 #[derive(Debug)]
 pub struct DefaultService {}
 
-impl Service for DefaultService {
-    fn get(&self) {
-        todo!()
-    }
-
-    fn post(&self) {
-        todo!()
-    }
-}
+impl Service for DefaultService {}
 
 #[cfg(test)]
 mod test {
     use log::debug;
 
-    use crate::{init_logger, router::Router};
+    use crate::{init_logger, router::Router, service::Service};
 
     use super::Context;
+
+    #[derive(Debug)]
+    struct UserService {}
+
+    impl Service for UserService {}
 
     #[test]
     fn test_build() {
@@ -99,5 +93,26 @@ mod test {
             .build();
 
         debug!("{:#?}", context);
+    }
+
+    #[test]
+    fn test_route() {
+        init_logger();
+
+        let mut router = Router::default();
+        router.insert(("/user/name", Box::new(UserService {})));
+
+        let context = Context::builder()
+            .router(router)
+            .server_ip("127.0.0.1")
+            .server_port("8080")
+            .build();
+
+        let service = context.route("/user/name");
+        debug!("{:#?}", service);
+
+        let service = context.route("/notexist");
+
+        debug!("{:#?}", service);
     }
 }

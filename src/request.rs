@@ -2,9 +2,9 @@ use crate::common::HttpMethod;
 
 #[derive(Debug)]
 pub struct Request {
-    method: HttpMethod,
-    path: String,
-    version: String,
+    pub method: HttpMethod,
+    pub path: String,
+    pub version: String,
 }
 
 impl Request {
