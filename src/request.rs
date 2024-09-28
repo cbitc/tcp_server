@@ -1,4 +1,6 @@
-use crate::common::HttpMethod;
+use anyhow::anyhow;
+
+use crate::common::{HttpMethod, HttpResult};
 
 #[derive(Debug)]
 pub struct Request {
@@ -8,8 +10,8 @@ pub struct Request {
 }
 
 impl Request {
-    pub fn from_content<T: AsRef<str>>(content: &[T]) -> Result<Request, String> {
-        let result = if let [method, path, version] = *(content.first().unwrap())
+    pub fn from_content<T: AsRef<str>>(content: &[T]) -> HttpResult<Self> {
+        if let [method, path, version] = *(content.first().unwrap())
             .as_ref()
             .split(' ')
             .collect::<Vec<_>>()
@@ -21,7 +23,7 @@ impl Request {
                 "PUT" => HttpMethod::PUT,
                 "PATCH" => HttpMethod::PATCH,
                 "DELETE" => HttpMethod::DELETE,
-                other => return Err(format!("not supported method {other}")),
+                other => return Err(anyhow!("not supported method {other}")),
             };
             let request = Request {
                 method,
@@ -30,10 +32,8 @@ impl Request {
             };
             Ok(request)
         } else {
-            Err("status line parse error!".to_string())
-        };
-
-        result
+            Err(anyhow!("status line parse error!"))
+        }
     }
 }
 

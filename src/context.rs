@@ -93,7 +93,7 @@ impl FileService {
 }
 
 impl Service for FileService {
-    fn get(&self, request: &Request, response: &mut Response) -> HttpResult {
+    fn get(&self, request: &Request, response: &mut Response) -> HttpResult<()> {
         if let [file_type, _] = request.path.rsplit('.').collect::<Vec<_>>()[..] {
             let mut file = fs::File::open(self.get_real_path(&request.path))?;
             let mut buffer = vec![];
@@ -107,7 +107,7 @@ impl Service for FileService {
                     return Err(anyhow!("unknow file type {}", other));
                 }
             };
-            response.writer.write(buffer);
+            response.writer.write(buffer)?;
             Ok(())
         } else {
             Err(anyhow!("can not parse the file path {}", request.path))

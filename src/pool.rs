@@ -15,6 +15,7 @@ pub struct ThreadPool {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 struct Worker {
     id: u32,
     thread: thread::JoinHandle<()>,

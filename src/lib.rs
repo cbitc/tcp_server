@@ -6,7 +6,7 @@ pub mod router;
 mod service;
 pub mod response;
 
-
+#[allow(dead_code)]
 fn init_logger() {
     let _ = env_logger::builder()
         // Include all events in tests

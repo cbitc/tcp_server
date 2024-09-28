@@ -5,13 +5,9 @@ use std::{
     sync::Arc,
 };
 
-use log::{info, log, trace};
+use log::{error, info};
 use tcp_server::{
-    common::HttpResult,
-    context::{Context, FileService},
-    pool::ThreadPool,
-    request::Request,
-    response::Response,
+    common::HttpResult, context::Context, pool::ThreadPool, request::Request, response::Response,
     router::Router,
 };
 
@@ -20,7 +16,7 @@ fn init_logger() {
     env_logger::init();
 }
 
-fn main() -> HttpResult {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     init_logger();
 
     let router = Router::default();
@@ -37,7 +33,7 @@ fn main() -> HttpResult {
     Ok(())
 }
 
-fn start_server(context: Arc<Context>) -> HttpResult {
+fn start_server(context: Arc<Context>) -> Result<(), Box<dyn std::error::Error>> {
     let host = format!("{}:{}", context.server_ip, context.server_port);
     let server = std::net::TcpListener::bind(&host)?;
     info!("服务器启动");
@@ -62,23 +58,40 @@ fn handle_connection(mut stream: TcpStream, context: Arc<Context>) {
         .take_while(|line| !line.is_empty())
         .collect();
 
-    let request = Request::from_content(&lines).unwrap();
+    let request = Request::from_content(&lines).unwrap_or_else(|err| {
+        error!("{:#?}", err);
+        panic!("{:#?}", err);
+    });
+
     info!("{}", request.path);
+
     let service = context.route(&request.path);
+
     let mut response = Response::default();
+
     service
         .service(request.method, &request, &mut response)
-        .unwrap();
+        .unwrap_or_else(|err| {
+            error!("{:#?}", err);
+            panic!("{:#?}", err);
+        });
 
-    print_response(&stream, &request, &response);
+    print_response(&stream, &request, &response).unwrap_or_else(|err| {
+        error!("{:#?}", err);
+        panic!("{:#?}", err);
+    });
 }
 
-fn print_response(mut stream: &TcpStream, request: &Request, response: &Response) {
+fn print_response(
+    mut stream: &TcpStream,
+    request: &Request,
+    response: &Response,
+) -> HttpResult<()> {
     let line = format!(
         "{} {} {}\r\n",
         request.version, response.status_code, response.status_text
     );
-    stream.write_all(line.as_bytes()).unwrap();
+    stream.write_all(line.as_bytes())?;
 
     let head = format!(
         "Content-Type: {}; charset={}\r\nContent-Length: {}\r\n\r\n",
@@ -86,7 +99,9 @@ fn print_response(mut stream: &TcpStream, request: &Request, response: &Response
         response.charset,
         response.writer.get_buffer().len()
     );
-    stream.write_all(head.as_bytes()).unwrap();
+    stream.write_all(head.as_bytes())?;
 
-    stream.write_all(response.writer.get_buffer()).unwrap();
+    stream.write_all(response.writer.get_buffer())?;
+
+    Ok(())
 }

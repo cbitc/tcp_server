@@ -1,4 +1,4 @@
-#[derive(Debug,Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub enum HttpMethod {
     GET,
     POST,
@@ -7,4 +7,4 @@ pub enum HttpMethod {
     DELETE,
 }
 
-pub type HttpResult = anyhow::Result<()>;
+pub type HttpResult<T> = anyhow::Result<T>;

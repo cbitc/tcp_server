@@ -1,4 +1,6 @@
-use std::{fmt::Write as fmtWrite, io::Write};
+use std::io::Write;
+
+use crate::common::HttpResult;
 
 #[derive(Debug)]
 pub struct Response {
@@ -44,8 +46,9 @@ pub struct ResponseWriter {
 }
 
 impl ResponseWriter {
-    pub fn write(&mut self, content: impl AsRef<[u8]>) {
-        self.buffer.write_all(content.as_ref()).unwrap();
+    pub fn write(&mut self, content: impl AsRef<[u8]>) -> HttpResult<()> {
+        self.buffer.write_all(content.as_ref())?;
+        Ok(())
     }
 
     pub fn get_buffer(&self) -> &[u8] {
