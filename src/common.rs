@@ -6,3 +6,5 @@ pub enum HttpMethod {
     PATCH,
     DELETE,
 }
+
+pub type HttpResult = anyhow::Result<()>;

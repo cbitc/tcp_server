@@ -5,9 +5,14 @@ use std::{
     sync::Arc,
 };
 
-use log::{info, trace};
+use log::{info, log, trace};
 use tcp_server::{
-    context::Context, pool::ThreadPool, request::Request, response::Response, router::Router,
+    common::HttpResult,
+    context::{Context, FileService},
+    pool::ThreadPool,
+    request::Request,
+    response::Response,
+    router::Router,
 };
 
 fn init_logger() {
@@ -15,7 +20,7 @@ fn init_logger() {
     env_logger::init();
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> HttpResult {
     init_logger();
 
     let router = Router::default();
@@ -32,7 +37,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn start_server(context: Arc<Context>) -> Result<(), Box<dyn std::error::Error>> {
+fn start_server(context: Arc<Context>) -> HttpResult {
     let host = format!("{}:{}", context.server_ip, context.server_port);
     let server = std::net::TcpListener::bind(&host)?;
     info!("服务器启动");
@@ -58,12 +63,12 @@ fn handle_connection(mut stream: TcpStream, context: Arc<Context>) {
         .collect();
 
     let request = Request::from_content(&lines).unwrap();
-    trace!("{:#?}", request);
+    info!("{}", request.path);
     let service = context.route(&request.path);
-    trace!("{:#?}", service);
     let mut response = Response::default();
-    service.service(request.method, &request, &mut response);
-    trace!("{:#?}", response);
+    service
+        .service(request.method, &request, &mut response)
+        .unwrap();
 
     print_response(&stream, &request, &response);
 }

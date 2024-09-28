@@ -1,4 +1,10 @@
-use crate::{request::Request, response::Response, router::Router, service::Service};
+use std::{fs, io::Read};
+
+use anyhow::anyhow;
+
+use crate::{
+    common::HttpResult, request::Request, response::Response, router::Router, service::Service,
+};
 
 #[derive(Debug)]
 pub struct Context {
@@ -6,6 +12,7 @@ pub struct Context {
     pub server_port: String,
     router: Router,
     default_service: Box<dyn Service>,
+    file_service: Box<dyn Service>,
 }
 
 impl Context {
@@ -14,6 +21,9 @@ impl Context {
     }
 
     pub fn route(&self, path: &str) -> &Box<dyn Service> {
+        if path.contains('.') {
+            return &self.file_service;
+        }
         if let Some(service) = self.router.get(path) {
             service
         } else {
@@ -59,6 +69,7 @@ impl ContextBuilder {
             server_port: self.server_port,
             router: self.router,
             default_service: Box::new(DefaultService {}),
+            file_service: Box::new(FileService::new()),
         }
     }
 }
@@ -67,6 +78,42 @@ impl ContextBuilder {
 pub struct DefaultService {}
 
 impl Service for DefaultService {}
+
+#[derive(Debug)]
+pub struct FileService {}
+
+impl FileService {
+    pub fn new() -> Self {
+        Self {}
+    }
+
+    fn get_real_path(&self, relative_path: &str) -> String {
+        format!("./web/{}", relative_path)
+    }
+}
+
+impl Service for FileService {
+    fn get(&self, request: &Request, response: &mut Response) -> HttpResult {
+        if let [file_type, _] = request.path.rsplit('.').collect::<Vec<_>>()[..] {
+            let mut file = fs::File::open(self.get_real_path(&request.path))?;
+            let mut buffer = vec![];
+            file.read_to_end(&mut buffer)?;
+
+            match file_type {
+                "html" => response.content_type = "text/html",
+                "ico" => response.content_type = "image/ico",
+                "png" => response.content_type = "image/png",
+                other => {
+                    return Err(anyhow!("unknow file type {}", other));
+                }
+            };
+            response.writer.write(buffer);
+            Ok(())
+        } else {
+            Err(anyhow!("can not parse the file path {}", request.path))
+        }
+    }
+}
 
 #[cfg(test)]
 mod test {

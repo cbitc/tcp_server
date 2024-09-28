@@ -1,4 +1,4 @@
-use std::fmt::Write as fmtWrite;
+use std::{fmt::Write as fmtWrite, io::Write};
 
 #[derive(Debug)]
 pub struct Response {
@@ -40,15 +40,15 @@ impl Default for Response {
 
 #[derive(Debug, Default)]
 pub struct ResponseWriter {
-    buffer: String,
+    buffer: Vec<u8>,
 }
 
 impl ResponseWriter {
-    pub fn write(&mut self, content: &str) {
-        write!(&mut self.buffer, "{content}").unwrap();
+    pub fn write(&mut self, content: impl AsRef<[u8]>) {
+        self.buffer.write_all(content.as_ref()).unwrap();
     }
 
     pub fn get_buffer(&self) -> &[u8] {
-        self.buffer.as_bytes()
+        &self.buffer
     }
 }
